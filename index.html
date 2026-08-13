@@ -6,6 +6,7 @@
     <title>Dashboard Universal - ARENA</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        
         :root {
             --bg-color: #f4f7f6;
             --card-bg: #ffffff;
@@ -177,6 +178,26 @@
         .pb-yellow { background-color: var(--warning); }
         .pb-red { background-color: var(--danger); }
 
+        /* Estilos do Bloco de Notas */
+        #notepad {
+            width: 100%;
+            height: 150px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+            background-color: #fafafa;
+            margin-bottom: 0;
+        }
+        #notepad:focus {
+            outline: none;
+            border-color: var(--accent);
+            background-color: #ffffff;
+        }
+
     </style>
 </head>
 <body>
@@ -280,9 +301,26 @@
                 </div>
             </div>
         </div>
+
+        <!-- NOVO: Bloco de Notas -->
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-header" style="color: var(--primary); font-size: 1.2em; text-transform: none;">
+                <span><i class="fas fa-sticky-note" style="color: #f1c40f;"></i> Bloco de Notas para Análise</span>
+            </div>
+            <div class="subtitle" style="margin-bottom:15px;">Suas observações são salvas automaticamente neste navegador.</div>
+            <textarea id="notepad" placeholder="Digite suas conclusões, gargalos identificados e planos de ação aqui..."></textarea>
+        </div>
+
     </div>
 
     <script>
+        // Inicialização e salvamento do Bloco de Notas
+        const notepad = document.getElementById('notepad');
+        notepad.value = localStorage.getItem('arena_dashboard_notes') || '';
+        notepad.addEventListener('input', () => {
+            localStorage.setItem('arena_dashboard_notes', notepad.value);
+        });
+
         function cleanName(name) {
             return name.replace(/\.R$/, '').trim();
         }
@@ -291,7 +329,6 @@
             return parseFloat(val).toLocaleString('pt-BR', { maximumFractionDigits: decimals });
         }
 
-        // NOVA FUNÇÃO: Formatação inteligente de tempo (horas -> minutos -> segundos)
         function formatTime(hours) {
             if (hours === 0) return "0 h";
             if (hours < 1) {
@@ -305,7 +342,6 @@
             return formatNum(hours, 2) + " h";
         }
 
-        // Extrator Geral APRIMORADO: Agora ele soma e calcula a média de todas as replicações
         function extractDynamicList(text, keyword) {
             const map = new Map();
             const safeKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -316,7 +352,6 @@
                 let name = cleanName(match[1].trim());
                 let val = parseFloat(match[2]);
                 
-                // Em vez de sobrescrever, armazena para calcular a média no final
                 if (!map.has(name)) {
                     map.set(name, { sum: 0, count: 0 });
                 }
@@ -326,13 +361,11 @@
             }
             
             return Array.from(map.entries())
-                // Calcula a média real (Soma / Qtd de replicações)
                 .map(([name, data]) => ({name, val: data.sum / data.count}))
                 .filter(item => !isNaN(item.val))
                 .sort((a, b) => b.val - a.val);
         }
 
-        // Extrator Inteligente Exclusivo para Recursos (Mantido intacto)
         function extractResourceUtilization(text) {
             const lines = text.split('\n');
             const resources = new Map();
@@ -426,7 +459,6 @@
 
                 if (arrQueueWait.length > 0) {
                     document.getElementById('card4-name').innerText = arrQueueWait[0].name;
-                    // Aplicando formatação inteligente de tempo no Card Superior
                     document.getElementById('card4-val').innerText = formatTime(arrQueueWait[0].val);
                 }
 
@@ -447,7 +479,6 @@
                 tbodyFilas.innerHTML = '';
                 arrQueueWait.forEach(item => {
                     if(item.val > 0) {
-                        // Aplicando formatação inteligente na tabela
                         tbodyFilas.innerHTML += `<tr>
                             <td><strong>${item.name}</strong></td>
                             <td style="color: var(--text-muted);">${formatTime(item.val)}</td>
@@ -497,4 +528,3 @@
     </script>
 </body>
 </html>
- 
