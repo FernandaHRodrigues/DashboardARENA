@@ -287,7 +287,25 @@
             return name.replace(/\.R$/, '').trim();
         }
 
-        // Extrator Geral
+        function formatNum(val, decimals = 0) {
+            return parseFloat(val).toLocaleString('pt-BR', { maximumFractionDigits: decimals });
+        }
+
+        // NOVA FUNÇÃO: Formatação inteligente de tempo (horas -> minutos -> segundos)
+        function formatTime(hours) {
+            if (hours === 0) return "0 h";
+            if (hours < 1) {
+                const mins = hours * 60;
+                if (mins < 1) {
+                    const secs = mins * 60;
+                    return formatNum(secs, 0) + " seg";
+                }
+                return formatNum(mins, 1) + " min";
+            }
+            return formatNum(hours, 2) + " h";
+        }
+
+        // Extrator Geral APRIMORADO: Agora ele soma e calcula a média de todas as replicações
         function extractDynamicList(text, keyword) {
             const map = new Map();
             const safeKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -296,16 +314,25 @@
             let match;
             while ((match = regex.exec(text)) !== null) {
                 let name = cleanName(match[1].trim());
-                map.set(name, parseFloat(match[2]));
+                let val = parseFloat(match[2]);
+                
+                // Em vez de sobrescrever, armazena para calcular a média no final
+                if (!map.has(name)) {
+                    map.set(name, { sum: 0, count: 0 });
+                }
+                let data = map.get(name);
+                data.sum += val;
+                data.count += 1;
             }
             
             return Array.from(map.entries())
-                .map(([name, val]) => ({name, val}))
+                // Calcula a média real (Soma / Qtd de replicações)
+                .map(([name, data]) => ({name, val: data.sum / data.count}))
                 .filter(item => !isNaN(item.val))
                 .sort((a, b) => b.val - a.val);
         }
 
-        // Extrator Inteligente Exclusivo para Recursos
+        // Extrator Inteligente Exclusivo para Recursos (Mantido intacto)
         function extractResourceUtilization(text) {
             const lines = text.split('\n');
             const resources = new Map();
@@ -319,12 +346,10 @@
             let inSummary = false;
             
             for (let line of lines) {
-                // Detecta se entrou no bloco final
                 if (line.includes('Resumo de resultados para') || line.includes('Sumário para 2')) {
                     inSummary = true;
                 }
 
-                // Captura ScheduledUtilization
                 let matchSched = line.match(/^(.+?)(?:\s+|\.)ScheduledUtilization\s+([\d\.]+(?:E[\+\-]?\d+)?)/i);
                 if (matchSched) {
                     let val = parseFloat(matchSched[2]);
@@ -332,7 +357,6 @@
                     else getRes(matchSched[1]).scheduled.push(val);
                 }
 
-                // Captura Utilization (garantindo que não é Scheduled)
                 if (!line.toLowerCase().includes('scheduled')) {
                     let matchAbs = line.match(/^(.+?)(?:\s+|\.)Utilization\s+([\d\.]+(?:E[\+\-]?\d+)?)/i);
                     if (matchAbs) {
@@ -343,7 +367,6 @@
                 }
             }
 
-            // Consolidar resultados
             const results = [];
             for (let [name, data] of resources.entries()) {
                 let sched = data.summarySched !== null ? data.summarySched : 
@@ -358,10 +381,6 @@
             }
             
             return results.sort((a, b) => b.sched - a.sched);
-        }
-
-        function formatNum(val, decimals = 0) {
-            return parseFloat(val).toLocaleString('pt-BR', { maximumFractionDigits: decimals });
         }
 
         function processData() {
@@ -407,7 +426,8 @@
 
                 if (arrQueueWait.length > 0) {
                     document.getElementById('card4-name').innerText = arrQueueWait[0].name;
-                    document.getElementById('card4-val').innerText = formatNum(arrQueueWait[0].val, 2) + ' h';
+                    // Aplicando formatação inteligente de tempo no Card Superior
+                    document.getElementById('card4-val').innerText = formatTime(arrQueueWait[0].val);
                 }
 
                 // Tabela 1: Produção
@@ -426,11 +446,11 @@
                 const tbodyFilas = document.getElementById('table-filas');
                 tbodyFilas.innerHTML = '';
                 arrQueueWait.forEach(item => {
-                    // Omitir filas com tempo zerado, opcional. Aqui mostra as > 0 para limpar a tabela
                     if(item.val > 0) {
+                        // Aplicando formatação inteligente na tabela
                         tbodyFilas.innerHTML += `<tr>
                             <td><strong>${item.name}</strong></td>
-                            <td style="color: var(--text-muted);">${formatNum(item.val, 2)} h</td>
+                            <td style="color: var(--text-muted);">${formatTime(item.val)}</td>
                         </tr>`;
                     }
                 });
